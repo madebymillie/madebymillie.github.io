@@ -81,11 +81,6 @@ textarea{min-height:9rem;resize:vertical}
 .btn.alt{background:var(--blue);color:var(--maroon-deep)}
 .btn.alt:hover{background:var(--blue-2)}
 #msg{margin-top:.9rem;font-size:1rem;min-height:1.5em}
-.ref-drop{border:2px dashed var(--maroon);background:var(--cream-2);border-radius:12px;padding:1.4rem;text-align:center;cursor:pointer;color:var(--maroon);transition:background .2s}
-.ref-drop.dragover{background:var(--blue);border-style:solid}
-.ref-drop p{margin:0 auto;font-size:1rem}
-.ref-drop img{max-width:100%;max-height:240px;border-radius:8px;margin-top:.8rem}
-.ref-drop button{margin-top:.8rem;padding:.45rem 1rem;border:0;border-radius:99px;background:var(--maroon);color:var(--cream);font:800 .9rem var(--display);cursor:pointer}
 .side{background:var(--blue);padding:1.6rem;border-radius:22px}
 .side ul{padding-left:1.2rem;margin:0}
 
@@ -217,13 +212,6 @@ footer p{max-width:none;margin:.3em 0}
             </div>
             <label for="idea">Your idea for the artwork</label>
             <textarea id="idea" placeholder="Colours, subjects, a favourite place, a pet, a feeling… anything you’re picturing."></textarea>
-            <label for="refInput">Reference image (optional)</label>
-            <div id="refDrop" class="ref-drop" tabindex="0">
-              <input type="file" id="refInput" name="attachment" accept="image/*" hidden>
-              <p id="refText">Drag &amp; drop one image here, or click to choose</p>
-              <img id="refPreview" alt="Reference preview" hidden>
-              <button type="button" id="refRemove" hidden>Remove image</button>
-            </div>
             <label for="name">Your name</label>
             <input id="name" type="text" autocomplete="name">
             <label for="email">Your email, so Millie can reply</label>
@@ -313,31 +301,11 @@ document.querySelectorAll("[data-jump]").forEach(a=>a.addEventListener("click",e
   if(current){ history.pushState(null,"","#home"); route(); setTimeout(go,50);} else go();
 }));
 
-/* reference image box: one image, any size */
-const refDrop=$("#refDrop"), refInput=$("#refInput"), refText=$("#refText"), refPreview=$("#refPreview"), refRemove=$("#refRemove");
-const REF_HINT="Drag & drop one image here, or click to choose";
-function showRef(file){
-  if(!file||!file.type.startsWith("image/")){ refText.textContent="Please choose an image file."; return; }
-  const dt=new DataTransfer(); dt.items.add(file); refInput.files=dt.files;
-  if(refPreview.src) URL.revokeObjectURL(refPreview.src);
-  refPreview.src=URL.createObjectURL(file); refPreview.hidden=false; refRemove.hidden=false; refText.textContent=file.name;
-}
-function clearRef(){
-  refInput.value=""; refPreview.hidden=true; refPreview.removeAttribute("src"); refRemove.hidden=true; refText.textContent=REF_HINT;
-}
-refDrop.addEventListener("click",e=>{ if(e.target!==refRemove) refInput.click(); });
-refDrop.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); refInput.click(); } });
-refInput.addEventListener("change",()=>showRef(refInput.files[0]));
-refRemove.addEventListener("click",e=>{ e.stopPropagation(); clearRef(); });
-["dragenter","dragover"].forEach(t=>refDrop.addEventListener(t,e=>{e.preventDefault();refDrop.classList.add("dragover");}));
-["dragleave","drop"].forEach(t=>refDrop.addEventListener(t,e=>{e.preventDefault();refDrop.classList.remove("dragover");}));
-refDrop.addEventListener("drop",e=>showRef(e.dataTransfer.files[0]));
-
 /* form */
 $("#who").addEventListener("change",e=>$("#otherBox").classList.toggle("hidden",e.target.value!=="Other"));
 $("#form").addEventListener("submit",async e=>{
   e.preventDefault();
-  const msg=$("#msg"), btn=e.target.querySelector("button[type=submit]");
+  const msg=$("#msg"), btn=e.target.querySelector("button");
   const who=$("#who").value, idea=$("#idea").value.trim(), name=$("#name").value.trim(), email=$("#email").value.trim();
   if(!who){ msg.textContent="Please choose who the artwork is for."; $("#who").focus(); return; }
   if(!idea){ msg.textContent="Please tell us your idea for the artwork."; $("#idea").focus(); return; }
@@ -347,36 +315,23 @@ $("#form").addEventListener("submit",async e=>{
   const forWho=who+(who==="Other"&&other?" ("+other+")":"");
   btn.disabled=true; msg.textContent="Sending…";
   try{
-    const build=withFile=>{
-      const fd=new FormData();
-      fd.append("access_key",WEB3FORMS_KEY);
-      fd.append("subject","New "+m.title.toLowerCase()+" enquiry from "+name);
-      fd.append("from_name","Millie’s Custom Art website");
-      fd.append("name",name); fd.append("email",email);
-      fd.append("medium",m.title+" (estimated $"+m.price+")");
-      fd.append("for",forWho);
-      fd.append("idea",withFile?idea:idea+(file?"\n\n[Customer tried to attach a reference image ("+file.name+") but it could not be sent. Ask them to email it.]":""));
-      if($("#botcheck").checked) fd.append("botcheck","true");
-      if(withFile&&file) fd.append("attachment",file);
-      return fd;
-    };
-    const send=async withFile=>{
-      const r=await fetch("https://api.web3forms.com/submit",{method:"POST",headers:{Accept:"application/json"},body:build(withFile)});
-      return r.json();
-    };
-    const file=$("#refInput").files[0];
-    let d, imageDropped=false;
-    if(file){
-      try{ d=await send(true); }catch(_){ d={success:false}; }
-      if(!d.success){ d=await send(false); imageDropped=true; }
-    } else { d=await send(false); }
+    const r=await fetch("https://api.web3forms.com/submit",{
+      method:"POST",
+      headers:{"Content-Type":"application/json",Accept:"application/json"},
+      body:JSON.stringify({
+        access_key:WEB3FORMS_KEY,
+        subject:"New "+m.title.toLowerCase()+" enquiry from "+name,
+        from_name:"Millie’s Custom Art website",
+        name:name, email:email,
+        medium:m.title+" (estimated $"+m.price+")",
+        for:forWho, idea:idea,
+        botcheck:$("#botcheck").checked
+      })
+    });
+    const d=await r.json();
     if(d.success){
-      e.target.reset(); clearRef(); $("#otherBox").classList.add("hidden");
-      if(imageDropped){
-        msg.innerHTML="Thank you! Your idea has been sent, but your reference image couldn’t be attached. Please email it to <a href=\"mailto:"+CONTACT_EMAIL+"\">"+CONTACT_EMAIL+"</a> so Millie can see it.";
-      } else {
-        msg.textContent="Thank you! Your idea has been sent and Millie will be in touch soon.";
-      }
+      e.target.reset(); $("#otherBox").classList.add("hidden");
+      msg.textContent="Thank you! Your idea has been sent and Millie will be in touch soon.";
     } else throw new Error(d.message||"Failed");
   }catch(err){
     msg.innerHTML="Sorry, that didn’t send. Please try again, or email <a href=\"mailto:"+CONTACT_EMAIL+"\">"+CONTACT_EMAIL+"</a> directly.";
