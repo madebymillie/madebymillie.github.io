@@ -211,68 +211,7 @@ footer p{max-width:none;margin:.3em 0}
               <input id="other" type="text" maxlength="80">
             </div>
             <label for="idea">Your idea for the artwork</label>
-            <textarea id="idea" placeholder="Colours, subjects, a favourite place, a pet, a feeling… anything you’re picturing."></textarea><!-- Reference image box -->
-<label class="ref-label">Reference image (optional)</label>
-<div id="refDrop" class="ref-drop" tabindex="0">
-  <input type="file" id="refInput" name="attachment" accept="image/*" hidden>
-  <p id="refText">Drag &amp; drop an image here, or click to choose one</p>
-  <img id="refPreview" alt="Reference preview" hidden>
-  <button type="button" id="refRemove" hidden>Remove image</button>
-</div>
-
-<style>
-  .ref-label { display:block; margin:16px 0 6px; font-weight:600; color:#6d1a2b; }
-  .ref-drop {
-    border: 2px dashed #6d1a2b; background: #fbf5e6; border-radius: 12px;
-    padding: 24px; text-align: center; cursor: pointer; color: #6d1a2b;
-    transition: background .2s, border-color .2s;
-  }
-  .ref-drop.dragover { background: #cfe3f1; border-style: solid; }
-  .ref-drop img { max-width: 100%; max-height: 260px; border-radius: 8px; margin-top: 12px; }
-  .ref-drop button {
-    margin-top: 12px; padding: 6px 14px; border: 0; border-radius: 20px;
-    background: #6d1a2b; color: #fbf5e6; cursor: pointer;
-  }
-</style>
-
-<script>
-  const drop = document.getElementById('refDrop');
-  const input = document.getElementById('refInput');
-  const text = document.getElementById('refText');
-  const preview = document.getElementById('refPreview');
-  const removeBtn = document.getElementById('refRemove');
-
-  function showFile(file) {
-    if (!file || !file.type.startsWith('image/')) {
-      text.textContent = 'Please choose an image file.';
-      return;
-    }
-    const dt = new DataTransfer();
-    dt.items.add(file);            // only one file kept
-    input.files = dt.files;
-    preview.src = URL.createObjectURL(file);
-    preview.hidden = false;
-    removeBtn.hidden = false;
-    text.textContent = file.name;
-  }
-
-  function clearFile() {
-    input.value = '';
-    preview.hidden = true;
-    removeBtn.hidden = true;
-    text.textContent = 'Drag & drop an image here, or click to choose one';
-  }
-
-  drop.addEventListener('click', e => { if (e.target !== removeBtn) input.click(); });
-  input.addEventListener('change', () => showFile(input.files[0]));
-  removeBtn.addEventListener('click', e => { e.stopPropagation(); clearFile(); });
-
-  ['dragenter', 'dragover'].forEach(ev =>
-    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('dragover'); }));
-  ['dragleave', 'drop'].forEach(ev =>
-    drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('dragover'); }));
-  drop.addEventListener('drop', e => showFile(e.dataTransfer.files[0]));
-</script>
+            <textarea id="idea" placeholder="Colours, subjects, a favourite place, a pet, a feeling… anything you’re picturing."></textarea>
             <label for="name">Your name</label>
             <input id="name" type="text" autocomplete="name">
             <label for="email">Your email, so Millie can reply</label>
