@@ -214,6 +214,9 @@ footer p{max-width:none;margin:.3em 0}
             <textarea id="idea" placeholder="Colours, subjects, a favourite place, a pet, a feeling… anything you’re picturing."></textarea>
             <label for="name">Your name</label>
             <input id="name" type="text" autocomplete="name">
+            <label for="email">Your email, so Millie can reply</label>
+            <input id="email" type="email" autocomplete="email" placeholder="you@example.com">
+            <input type="checkbox" id="botcheck" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
             <div class="est"><span>Estimated price<br><small>Final price confirmed after we chat.</small></span><strong id="price"></strong></div>
             <button class="btn" type="submit">Send my idea</button>
             <p id="msg" role="status"></p>
@@ -260,6 +263,7 @@ footer p{max-width:none;margin:.3em 0}
 <script>
 /* ===== EDIT THESE TWO LINES ===== */
 const CONTACT_EMAIL = "MadeByMileesha@gmail.com";
+const WEB3FORMS_KEY = "9305ae9a-04b9-4eb6-a615-0335e113f3f0";
 const INSTAGRAM_URL = "https://www.instagram.com/made_by_mileesha/";
 /* ================================ */
 
@@ -299,15 +303,40 @@ document.querySelectorAll("[data-jump]").forEach(a=>a.addEventListener("click",e
 
 /* form */
 $("#who").addEventListener("change",e=>$("#otherBox").classList.toggle("hidden",e.target.value!=="Other"));
-$("#form").addEventListener("submit",e=>{
+$("#form").addEventListener("submit",async e=>{
   e.preventDefault();
-  const who=$("#who").value, idea=$("#idea").value.trim();
-  if(!who){ $("#msg").textContent="Please choose who the artwork is for."; $("#who").focus(); return; }
-  if(!idea){ $("#msg").textContent="Please tell us your idea for the artwork."; $("#idea").focus(); return; }
+  const msg=$("#msg"), btn=e.target.querySelector("button");
+  const who=$("#who").value, idea=$("#idea").value.trim(), name=$("#name").value.trim(), email=$("#email").value.trim();
+  if(!who){ msg.textContent="Please choose who the artwork is for."; $("#who").focus(); return; }
+  if(!idea){ msg.textContent="Please tell us your idea for the artwork."; $("#idea").focus(); return; }
+  if(!name){ msg.textContent="Please add your name."; $("#name").focus(); return; }
+  if(!/^\S+@\S+\.\S+$/.test(email)){ msg.textContent="Please add a valid email so Millie can reply."; $("#email").focus(); return; }
   const m=MEDIUMS[current], other=$("#other").value.trim();
-  const body=`Hi Millie!\n\nMedium: ${m.title} (estimated $${m.price})\nFor: ${who}${who==="Other"&&other?" ("+other+")":""}\n\nMy idea:\n${idea}\n\nFrom: ${$("#name").value.trim()}`;
-  location.href=`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Custom "+m.title.toLowerCase()+" enquiry")}&body=${encodeURIComponent(body)}`;
-  $("#msg").textContent="Opening your email app. Press send there to finish your enquiry.";
+  const forWho=who+(who==="Other"&&other?" ("+other+")":"");
+  btn.disabled=true; msg.textContent="Sending…";
+  try{
+    const r=await fetch("https://api.web3forms.com/submit",{
+      method:"POST",
+      headers:{"Content-Type":"application/json",Accept:"application/json"},
+      body:JSON.stringify({
+        access_key:WEB3FORMS_KEY,
+        subject:"New "+m.title.toLowerCase()+" enquiry from "+name,
+        from_name:"Millie’s Custom Art website",
+        name:name, email:email,
+        medium:m.title+" (estimated $"+m.price+")",
+        for:forWho, idea:idea,
+        botcheck:$("#botcheck").checked
+      })
+    });
+    const d=await r.json();
+    if(d.success){
+      e.target.reset(); $("#otherBox").classList.add("hidden");
+      msg.textContent="Thank you! Your idea has been sent and Millie will be in touch soon.";
+    } else throw new Error(d.message||"Failed");
+  }catch(err){
+    msg.innerHTML="Sorry, that didn’t send. Please try again, or email <a href=\"mailto:"+CONTACT_EMAIL+"\">"+CONTACT_EMAIL+"</a> directly.";
+  }
+  btn.disabled=false;
 });
 $("#emailBtn").href=`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent("Enquiry about custom art")}`;
 $("#igBtn").href=INSTAGRAM_URL;
