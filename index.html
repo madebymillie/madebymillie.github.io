@@ -347,21 +347,36 @@ $("#form").addEventListener("submit",async e=>{
   const forWho=who+(who==="Other"&&other?" ("+other+")":"");
   btn.disabled=true; msg.textContent="Sending…";
   try{
-    const fd=new FormData();
-    fd.append("access_key",WEB3FORMS_KEY);
-    fd.append("subject","New "+m.title.toLowerCase()+" enquiry from "+name);
-    fd.append("from_name","Millie’s Custom Art website");
-    fd.append("name",name); fd.append("email",email);
-    fd.append("medium",m.title+" (estimated $"+m.price+")");
-    fd.append("for",forWho); fd.append("idea",idea);
-    if($("#botcheck").checked) fd.append("botcheck","true");
+    const build=withFile=>{
+      const fd=new FormData();
+      fd.append("access_key",WEB3FORMS_KEY);
+      fd.append("subject","New "+m.title.toLowerCase()+" enquiry from "+name);
+      fd.append("from_name","Millie’s Custom Art website");
+      fd.append("name",name); fd.append("email",email);
+      fd.append("medium",m.title+" (estimated $"+m.price+")");
+      fd.append("for",forWho);
+      fd.append("idea",withFile?idea:idea+(file?"\n\n[Customer tried to attach a reference image ("+file.name+") but it could not be sent. Ask them to email it.]":""));
+      if($("#botcheck").checked) fd.append("botcheck","true");
+      if(withFile&&file) fd.append("attachment",file);
+      return fd;
+    };
+    const send=async withFile=>{
+      const r=await fetch("https://api.web3forms.com/submit",{method:"POST",headers:{Accept:"application/json"},body:build(withFile)});
+      return r.json();
+    };
     const file=$("#refInput").files[0];
-    if(file) fd.append("attachment",file);
-    const r=await fetch("https://api.web3forms.com/submit",{method:"POST",headers:{Accept:"application/json"},body:fd});
-    const d=await r.json();
+    let d, imageDropped=false;
+    if(file){
+      try{ d=await send(true); }catch(_){ d={success:false}; }
+      if(!d.success){ d=await send(false); imageDropped=true; }
+    } else { d=await send(false); }
     if(d.success){
       e.target.reset(); clearRef(); $("#otherBox").classList.add("hidden");
-      msg.textContent="Thank you! Your idea has been sent and Millie will be in touch soon.";
+      if(imageDropped){
+        msg.innerHTML="Thank you! Your idea has been sent, but your reference image couldn’t be attached. Please email it to <a href=\"mailto:"+CONTACT_EMAIL+"\">"+CONTACT_EMAIL+"</a> so Millie can see it.";
+      } else {
+        msg.textContent="Thank you! Your idea has been sent and Millie will be in touch soon.";
+      }
     } else throw new Error(d.message||"Failed");
   }catch(err){
     msg.innerHTML="Sorry, that didn’t send. Please try again, or email <a href=\"mailto:"+CONTACT_EMAIL+"\">"+CONTACT_EMAIL+"</a> directly.";
